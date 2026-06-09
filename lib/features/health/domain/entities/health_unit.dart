@@ -8,4 +8,5 @@ enum HealthUnit {
   percentage,
   celsius,
   kcal,
+  miliseconds,
 }
