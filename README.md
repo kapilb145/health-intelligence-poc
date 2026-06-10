@@ -26,6 +26,7 @@ Supported providers:
 - 30-day averages
 - Custom date ranges
 - Trend visualization
+- Runtime health provider switching
 
 ## Architecture
 
@@ -95,18 +96,20 @@ flutter run
 
 ## Data Source Switching
 
-`MockHealthDataSource`:
-Used for stable demo and testing behavior.
+The app supports runtime switching from the dashboard toggle: Demo | Device.
 
-`DeviceHealthDataSource`:
-Used for real-device integration with platform health providers.
+Demo Mode:
 
-Runtime switching is available from the dashboard via the `Data Source` control (`Demo | Device`).
+- Uses `MockHealthDataSource`
+- Provides sample data for demos and testing
 
-Switching infrastructure is composed in `configureDependencies()` in [lib/core/di/injection_container.dart](lib/core/di/injection_container.dart), where:
+Device Mode:
 
-- `SwitchableHealthDataSource` is registered as `HealthDataSource`
-- The active mode (`mock` or `device`) can change at runtime without rebuilding DI
+- Uses HealthKit / Health Connect
+- Requests real health permissions
+- Reads available device records
+
+Initial mode can still be configured in `configureDependencies()`, and runtime mode changes are handled by `SwitchableHealthDataSource` without rebuilding DI.
 
 ## Android Health Connect
 
