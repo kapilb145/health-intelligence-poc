@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:health/health.dart' as health;
@@ -22,8 +23,9 @@ class DeviceHealthDataSource implements HealthDataSource {
   final HealthPackageClient _client;
   final HealthPackageMapper _mapper;
   final bool Function() _platformSupported;
+  bool _isReadAuthorizationGranted = false;
 
-    static bool _defaultPlatformSupported() {
+  static bool _defaultPlatformSupported() {
     return Platform.isIOS || Platform.isAndroid;
   }
 
@@ -33,11 +35,19 @@ class DeviceHealthDataSource implements HealthDataSource {
     required HealthDateRange range,
   }) async {
     try {
+      developer.log(
+        'DeviceHealthDataSource.getMetrics type=${type.name} range=${range.startDate}..${range.endDate}',
+        name: 'DeviceHealthDataSource',
+      );
       _ensureSupportedPlatform();
       final externalType = _resolveExternalTypeForMetric(type);
+      developer.log(
+        'Resolved native type for ${type.name}: ${externalType.name} on ${Platform.operatingSystem}',
+        name: 'DeviceHealthDataSource',
+      );
 
       await _ensureAvailable();
-      await _ensureReadPermissions([externalType]);
+      await _ensureReadPermissionsForSupportedTypes();
 
       final points = await _client.getHealthData(
         start: range.startDate,
@@ -49,11 +59,23 @@ class DeviceHealthDataSource implements HealthDataSource {
           .map(_mapper.mapDataPoint)
           .where((metric) => metric.type == type)
           .toList(growable: false);
-    } on AppException {
+    } on AppException catch (error, stackTrace) {
+      developer.log(
+        'DeviceHealthDataSource AppException: ${error.message}',
+        name: 'DeviceHealthDataSource',
+        error: error,
+        stackTrace: stackTrace,
+      );
       rethrow;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'DeviceHealthDataSource unexpected error in getMetrics',
+        name: 'DeviceHealthDataSource',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw DataUnavailableException(
-        message: 'Unable to read health data from device provider.',
+        message: 'Unable to read health data from device provider: $error',
         details: error,
       );
     }
@@ -64,11 +86,15 @@ class DeviceHealthDataSource implements HealthDataSource {
     required HealthDateRange range,
   }) async {
     try {
+      developer.log(
+        'DeviceHealthDataSource.getAllMetrics range=${range.startDate}..${range.endDate}',
+        name: 'DeviceHealthDataSource',
+      );
       _ensureSupportedPlatform();
       final types = _supportedExternalTypes();
 
       await _ensureAvailable();
-      await _ensureReadPermissions(types);
+      await _ensureReadPermissionsForSupportedTypes();
 
       final points = await _client.getHealthData(
         start: range.startDate,
@@ -78,11 +104,23 @@ class DeviceHealthDataSource implements HealthDataSource {
 
       final mapped = points.map(_mapper.mapDataPoint).toList(growable: false);
       return _deduplicateById(mapped);
-    } on AppException {
+    } on AppException catch (error, stackTrace) {
+      developer.log(
+        'DeviceHealthDataSource AppException: ${error.message}',
+        name: 'DeviceHealthDataSource',
+        error: error,
+        stackTrace: stackTrace,
+      );
       rethrow;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'DeviceHealthDataSource unexpected error in getAllMetrics',
+        name: 'DeviceHealthDataSource',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw DataUnavailableException(
-        message: 'Unable to read health data from device provider.',
+        message: 'Unable to read health data from device provider: $error',
         details: error,
       );
     }
@@ -100,6 +138,10 @@ class DeviceHealthDataSource implements HealthDataSource {
 
   Future<void> _ensureAvailable() async {
     final isAvailable = await _client.isDataAvailable();
+    developer.log(
+      'Health availability result: $isAvailable',
+      name: 'DeviceHealthDataSource',
+    );
     if (!isAvailable) {
       throw const DataUnavailableException(
         message: 'Health data is unavailable on this device.',
@@ -108,12 +150,38 @@ class DeviceHealthDataSource implements HealthDataSource {
   }
 
   Future<void> _ensureReadPermissions(List<health.HealthDataType> types) async {
+    developer.log(
+      'Requesting read permissions for: ${types.map((t) => t.name).join(', ')}',
+      name: 'DeviceHealthDataSource',
+    );
     final granted = await _client.requestReadAuthorization(types: types);
+    developer.log(
+      'Read permission grant result: $granted',
+      name: 'DeviceHealthDataSource',
+    );
     if (!granted) {
-      throw const PermissionDeniedException(
-        message: 'Health data permission was denied.',
+      throw PermissionDeniedException(
+        message: 'Health data permission was denied for: ${types.map((t) => t.name).join(', ')}',
       );
     }
+  }
+
+  Future<void> _ensureReadPermissionsForSupportedTypes() async {
+    if (_isReadAuthorizationGranted) {
+      developer.log(
+        'Skipping permission request; read authorization already granted for supported types.',
+        name: 'DeviceHealthDataSource',
+      );
+      return;
+    }
+
+    final types = _supportedExternalTypes();
+    developer.log(
+      'Final native permission request types for ${Platform.operatingSystem}: ${types.map((t) => t.name).join(', ')}',
+      name: 'DeviceHealthDataSource',
+    );
+    await _ensureReadPermissions(types);
+    _isReadAuthorizationGranted = true;
   }
 
   List<HealthMetricModel> _deduplicateById(List<HealthMetricModel> metrics) {
@@ -128,7 +196,7 @@ class DeviceHealthDataSource implements HealthDataSource {
   }
 
   List<health.HealthDataType> _supportedExternalTypes() {
-    return [
+    final resolved = [
       _resolveExternalTypeForMetric(HealthMetricType.steps),
       _resolveExternalTypeForMetric(HealthMetricType.restingHeartRate),
       _resolveExternalTypeForMetric(HealthMetricType.bloodPressureSystolic),
@@ -136,22 +204,36 @@ class DeviceHealthDataSource implements HealthDataSource {
       _resolveExternalTypeForMetric(HealthMetricType.weight),
       _resolveExternalTypeForMetric(HealthMetricType.sleepDuration),
     ];
+
+    return resolved.toSet().toList(growable: false);
   }
 
   health.HealthDataType _resolveExternalTypeForMetric(HealthMetricType metricType) {
+    final isIOS = Platform.isIOS;
+
     switch (metricType) {
       case HealthMetricType.steps:
-        return _findTypeByCandidates(const ['STEPS']);
+        return _findTypeByCandidates(isIOS ? const ['STEPS'] : const ['STEPS']);
       case HealthMetricType.restingHeartRate:
-        return _findTypeByCandidates(const ['RESTING_HEART_RATE', 'HEART_RATE']);
+        return _findTypeByCandidates(
+          isIOS ? const ['HEART_RATE', 'RESTING_HEART_RATE'] : const ['RESTING_HEART_RATE', 'HEART_RATE'],
+        );
       case HealthMetricType.bloodPressureSystolic:
-        return _findTypeByCandidates(const ['BLOOD_PRESSURE_SYSTOLIC']);
+        return _findTypeByCandidates(
+          isIOS ? const ['BLOOD_PRESSURE_SYSTOLIC'] : const ['BLOOD_PRESSURE_SYSTOLIC'],
+        );
       case HealthMetricType.bloodPressureDiastolic:
-        return _findTypeByCandidates(const ['BLOOD_PRESSURE_DIASTOLIC']);
+        return _findTypeByCandidates(
+          isIOS ? const ['BLOOD_PRESSURE_DIASTOLIC'] : const ['BLOOD_PRESSURE_DIASTOLIC'],
+        );
       case HealthMetricType.weight:
-        return _findTypeByCandidates(const ['WEIGHT', 'BODY_MASS']);
+        return _findTypeByCandidates(
+          isIOS ? const ['WEIGHT'] : const ['WEIGHT', 'BODY_MASS'],
+        );
       case HealthMetricType.sleepDuration:
-        return _findTypeByCandidates(const ['SLEEP_ASLEEP', 'SLEEP_SESSION']);
+        return _findTypeByCandidates(
+          isIOS ? const ['SLEEP_ASLEEP', 'SLEEP_IN_BED'] : const ['SLEEP_SESSION', 'SLEEP_ASLEEP'],
+        );
       case HealthMetricType.bloodGlucose:
       case HealthMetricType.oxygenSaturation:
       case HealthMetricType.heartRateVariability:

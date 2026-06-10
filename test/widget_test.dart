@@ -6,17 +6,20 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:health_intelligence_poc/app/app.dart';
+import 'package:health_intelligence_poc/core/di/injection_container.dart';
 
-import 'package:health_intelligence_poc/main.dart';
 
 void main() {
-  testWidgets('App boots with architecture foundation text', (
+  testWidgets('App boots with dashboard header', (
     WidgetTester tester,
   ) async {
+    await configureDependencies();
     await tester.pumpWidget(const HealthIntelligenceApp());
+    await tester.pumpAndSettle();
 
     expect(
-      find.text('Health Intelligence POC - Architecture Foundation'),
+      find.text('Health Intelligence Dashboard'),
       findsOneWidget,
     );
   });

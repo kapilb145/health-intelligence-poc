@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:health/health.dart' as health;
 import 'package:health_intelligence_poc/features/health/data/datasources/health_package_client.dart';
 import 'package:health_intelligence_poc/features/health/data/mappers/health_package_mapper.dart';
 import 'package:health_intelligence_poc/features/health/domain/entities/health_metric_type.dart';
@@ -11,8 +12,8 @@ void main() {
     test('maps steps data point into HealthMetricModel', () {
       final point = HealthPackageDataPoint(
         id: 'point-1',
-        type: _FakeHealthType('HealthDataType.STEPS'),
-        value: 8342,
+        type: health.HealthDataType.STEPS,
+        value: health.NumericHealthValue(numericValue: 8342),
         dateFrom: DateTime(2026, 6, 9, 8),
         dateTo: DateTime(2026, 6, 9, 8, 5),
       );
@@ -29,8 +30,8 @@ void main() {
     test('maps numericValue-based payload', () {
       final point = HealthPackageDataPoint(
         id: 'point-2',
-        type: _FakeHealthType('HealthDataType.WEIGHT'),
-        value: const _FakeHealthValue(72.4),
+        type: health.HealthDataType.WEIGHT,
+        value: health.NumericHealthValue(numericValue: 72.4),
         dateFrom: DateTime(2026, 6, 9, 7),
         dateTo: DateTime(2026, 6, 9, 7, 2),
       );
@@ -42,19 +43,4 @@ void main() {
       expect(model.unit, HealthUnit.kilogram);
     });
   });
-}
-
-class _FakeHealthType {
-  const _FakeHealthType(this.value);
-
-  final String value;
-
-  @override
-  String toString() => value;
-}
-
-class _FakeHealthValue {
-  const _FakeHealthValue(this.numericValue);
-
-  final double numericValue;
 }

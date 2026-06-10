@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:health/health.dart' as health;
 import 'package:health_intelligence_poc/core/exceptions/app_exception.dart';
 import 'package:health_intelligence_poc/features/health/data/datasources/device_health_data_source.dart';
 import 'package:health_intelligence_poc/features/health/data/datasources/health_package_client.dart';
@@ -58,8 +59,8 @@ void main() {
         dataPoints: [
           HealthPackageDataPoint(
             id: 'step-1',
-            type: _FakeHealthType('HealthDataType.STEPS'),
-            value: 9000,
+            type: health.HealthDataType.STEPS,
+            value: health.NumericHealthValue(numericValue: 9000),
             dateFrom: DateTime(2026, 6, 8, 8),
             dateTo: DateTime(2026, 6, 8, 8, 5),
           ),
@@ -84,6 +85,35 @@ void main() {
       expect(result.first.type, HealthMetricType.steps);
       expect(result.first.value, 9000);
     });
+
+    test('requests read authorization only once per runtime', () async {
+      final client = _FakeHealthPackageClient(
+        available: true,
+        permissionGranted: true,
+      );
+      final source = DeviceHealthDataSource(
+        client: client,
+        mapper: const HealthPackageMapper(),
+        platformSupported: () => true,
+      );
+
+      await source.getMetrics(
+        type: HealthMetricType.steps,
+        range: HealthDateRange.custom(
+          DateTime(2026, 6, 1),
+          DateTime(2026, 6, 9),
+        ),
+      );
+
+      await source.getAllMetrics(
+        range: HealthDateRange.custom(
+          DateTime(2026, 6, 1),
+          DateTime(2026, 6, 9),
+        ),
+      );
+
+      expect(client.requestReadAuthorizationCallCount, 1);
+    });
   });
 }
 
@@ -97,12 +127,13 @@ class _FakeHealthPackageClient implements HealthPackageClient {
   final bool available;
   final bool permissionGranted;
   final List<HealthPackageDataPoint> dataPoints;
+  int requestReadAuthorizationCallCount = 0;
 
   @override
   Future<List<HealthPackageDataPoint>> getHealthData({
     required DateTime start,
     required DateTime end,
-    required List<dynamic> types,
+    required List<health.HealthDataType> types,
   }) async {
     return dataPoints;
   }
@@ -114,17 +145,10 @@ class _FakeHealthPackageClient implements HealthPackageClient {
 
   @override
   Future<bool> requestReadAuthorization({
-    required List<dynamic> types,
+    required List<health.HealthDataType> types,
+    bool forceRequest = false,
   }) async {
+    requestReadAuthorizationCallCount++;
     return permissionGranted;
   }
-}
-
-class _FakeHealthType {
-  const _FakeHealthType(this.value);
-
-  final String value;
-
-  @override
-  String toString() => value;
 }

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:health/health.dart' as health;
+
 import '../datasources/health_package_client.dart';
 import '../../domain/entities/health_data_provider.dart';
 import '../../domain/entities/health_metric_type.dart';
@@ -25,26 +27,26 @@ class HealthPackageMapper {
     );
   }
 
-  HealthMetricType mapMetricType(dynamic healthDataType) {
-    final typeName = healthDataType.toString().split('.').last.toUpperCase();
-
-    switch (typeName) {
-      case 'STEPS':
+  HealthMetricType mapMetricType(health.HealthDataType healthDataType) {
+    switch (healthDataType) {
+      case health.HealthDataType.STEPS:
         return HealthMetricType.steps;
-      case 'RESTING_HEART_RATE':
+      case health.HealthDataType.RESTING_HEART_RATE:
+      case health.HealthDataType.HEART_RATE:
         return HealthMetricType.restingHeartRate;
-      case 'BLOOD_PRESSURE_SYSTOLIC':
+      case health.HealthDataType.BLOOD_PRESSURE_SYSTOLIC:
         return HealthMetricType.bloodPressureSystolic;
-      case 'BLOOD_PRESSURE_DIASTOLIC':
+      case health.HealthDataType.BLOOD_PRESSURE_DIASTOLIC:
         return HealthMetricType.bloodPressureDiastolic;
-      case 'WEIGHT':
-      case 'BODY_MASS':
+      case health.HealthDataType.WEIGHT:
         return HealthMetricType.weight;
-      case 'SLEEP_ASLEEP':
-      case 'SLEEP_SESSION':
+      case health.HealthDataType.SLEEP_ASLEEP:
+      case health.HealthDataType.SLEEP_SESSION:
         return HealthMetricType.sleepDuration;
       default:
-        throw UnsupportedError('Unsupported health data type: $typeName');
+        throw UnsupportedError(
+          'Unsupported health data type: ${healthDataType.name}',
+        );
     }
   }
 
@@ -74,29 +76,14 @@ class HealthPackageMapper {
     }
   }
 
-  double _extractNumericValue(dynamic rawValue) {
-    if (rawValue is num) {
-      return rawValue.toDouble();
+  double _extractNumericValue(health.HealthValue rawValue) {
+    if (rawValue is health.NumericHealthValue) {
+      return rawValue.numericValue.toDouble();
     }
 
-    final fromNumericValue = _tryReadNumericValue(rawValue);
-    if (fromNumericValue != null) {
-      return fromNumericValue;
-    }
-
-    throw UnsupportedError('Unsupported health value type: ${rawValue.runtimeType}');
-  }
-
-  double? _tryReadNumericValue(dynamic rawValue) {
-    try {
-      final candidate = (rawValue as dynamic).numericValue;
-      if (candidate is num) {
-        return candidate.toDouble();
-      }
-    } catch (_) {
-      return null;
-    }
-    return null;
+    throw UnsupportedError(
+      'Unsupported health value type: ${rawValue.runtimeType}',
+    );
   }
 
   HealthDataProvider _mapProvider() {
