@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/health_data_mode.dart';
 import '../../domain/entities/health_date_range.dart';
 import '../../domain/entities/health_metric_summary.dart';
 import '../../domain/entities/health_metric_type.dart';
@@ -35,6 +36,13 @@ class HealthDashboardPage extends StatelessWidget {
         builder: (context, state) {
           return Column(
             children: [
+              _DataSourceSelector(
+                selectedMode: state.selectedDataMode,
+                onModeChanged: (mode) {
+                  context.read<HealthDashboardCubit>().changeDataSource(mode);
+                },
+              ),
+              const SizedBox(height: 6),
               _PeriodSelector(
                 selectedPeriod: state.selectedPeriod,
                 selectedRange: state.selectedRange,
@@ -160,14 +168,15 @@ class HealthDashboardPage extends StatelessWidget {
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
-         
-          Text(
-            'Some metrics may be unavailable if no Health Connect or HealthKit records exist.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          if (state.selectedDataMode == HealthDataMode.device) ...[
+            Text(
+              'Some metrics may be unavailable if no Health Connect or HealthKit records exist.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
+          ],
           _buildSummaryGrid(
             context: context,
             state: state,
@@ -465,5 +474,57 @@ class _PeriodSelector extends StatelessWidget {
 
   String _formatRange(HealthDateRange range) {
     return '${_formatDate(range.startDate)} - ${_formatDate(range.endDate)}';
+  }
+}
+
+class _DataSourceSelector extends StatelessWidget {
+  const _DataSourceSelector({
+    required this.selectedMode,
+    required this.onModeChanged,
+  });
+
+  final HealthDataMode selectedMode;
+  final ValueChanged<HealthDataMode> onModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      child: Row(
+        children: [
+          Text(
+            'Data Source',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SegmentedButton<HealthDataMode>(
+                segments: const [
+                  ButtonSegment<HealthDataMode>(
+                    value: HealthDataMode.mock,
+                    label: Text('Demo'),
+                  ),
+                  ButtonSegment<HealthDataMode>(
+                    value: HealthDataMode.device,
+                    label: Text('Device'),
+                  ),
+                ],
+                selected: {selectedMode},
+                onSelectionChanged: (selection) {
+                  final mode = selection.first;
+                  if (mode != selectedMode) {
+                    onModeChanged(mode);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

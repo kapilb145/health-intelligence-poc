@@ -137,13 +137,15 @@ class HealthAnalyticsService {
     required HealthMetricType metricType,
     required HealthDateRange dateRange,
   }) {
-    return metrics.where((metric) {
-      final withinRange =
-          !metric.recordedAt.isBefore(dateRange.startDate) &&
-          !metric.recordedAt.isAfter(dateRange.endDate);
+    return metrics
+        .where((metric) {
+          final withinRange =
+              !metric.recordedAt.isBefore(dateRange.startDate) &&
+              !metric.recordedAt.isAfter(dateRange.endDate);
 
-      return metric.type == metricType && withinRange;
-    }).toList(growable: false);
+          return metric.type == metricType && withinRange;
+        })
+        .toList(growable: false);
   }
 
   HealthUnit _defaultUnitFor(HealthMetricType metricType) {

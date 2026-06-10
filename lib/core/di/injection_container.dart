@@ -6,10 +6,13 @@ import '../../features/health/data/datasources/device_health_data_source.dart';
 import '../../features/health/data/datasources/health_data_source.dart';
 import '../../features/health/data/datasources/health_package_client.dart';
 import '../../features/health/data/datasources/mock_health_data_source.dart';
+import '../../features/health/data/datasources/switchable_health_data_source.dart';
 import '../../features/health/data/mappers/health_package_mapper.dart';
 import '../../features/health/data/repositories/health_repository_impl.dart';
+import '../../features/health/domain/entities/health_data_mode.dart';
 import '../../features/health/domain/repositories/health_repository.dart';
 import '../../features/health/domain/services/health_analytics_service.dart';
+import '../../features/health/domain/services/health_data_mode_controller.dart';
 import '../../features/health/domain/usecases/calculate_health_metrics_summary.dart';
 import '../../features/health/presentation/cubit/health_dashboard_cubit.dart';
 
@@ -17,8 +20,8 @@ final GetIt sl = GetIt.instance;
 
 /// Configures application dependency graph for the health feature.
 ///
-/// `useDeviceDataSource` switches the `HealthDataSource` binding between
-/// `MockHealthDataSource` and `DeviceHealthDataSource` at composition time.
+/// `useDeviceDataSource` defines the initial mode for runtime switching
+/// between `MockHealthDataSource` and `DeviceHealthDataSource`.
 Future<void> configureDependencies({
   bool useDeviceDataSource = false,
 }) async {
@@ -41,20 +44,25 @@ Future<void> configureDependencies({
       mapper: sl(),
     ),
   );
+  sl.registerLazySingleton<SwitchableHealthDataSource>(
+    () => SwitchableHealthDataSource(
+      mockDataSource: sl<MockHealthDataSource>(),
+      deviceDataSource: sl<DeviceHealthDataSource>(),
+      initialMode: useDeviceDataSource ? HealthDataMode.device : HealthDataMode.mock,
+    ),
+  );
 
-  sl.registerLazySingleton<HealthDataSource>(() {
-    if (useDeviceDataSource) {
-      developer.log('Resolving HealthDataSource -> DeviceHealthDataSource', name: 'DI');
-      return sl<DeviceHealthDataSource>();
-    }
-    developer.log('Resolving HealthDataSource -> MockHealthDataSource', name: 'DI');
-    return sl<MockHealthDataSource>();
-  });
+  sl.registerLazySingleton<HealthDataSource>(
+    () => sl<SwitchableHealthDataSource>(),
+  );
+  sl.registerLazySingleton<HealthDataModeController>(
+    () => sl<SwitchableHealthDataSource>(),
+  );
 
   sl.registerLazySingleton<HealthRepository>(() => HealthRepositoryImpl(sl()));
   sl.registerLazySingleton<HealthAnalyticsService>(HealthAnalyticsService.new);
   sl.registerFactory(
     () => CalculateHealthMetricsSummary(sl(), sl()),
   );
-  sl.registerFactory(() => HealthDashboardCubit(sl()));
+  sl.registerFactory(() => HealthDashboardCubit(sl(), sl()));
 }

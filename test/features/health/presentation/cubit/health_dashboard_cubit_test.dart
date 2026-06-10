@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health_intelligence_poc/core/errors/failure.dart';
 import 'package:health_intelligence_poc/core/result/result.dart' as result;
+import 'package:health_intelligence_poc/features/health/domain/entities/health_data_mode.dart';
 import 'package:health_intelligence_poc/features/health/domain/entities/health_date_range.dart';
 import 'package:health_intelligence_poc/features/health/domain/entities/health_metric_summary.dart';
 import 'package:health_intelligence_poc/features/health/domain/entities/health_metric_type.dart';
 import 'package:health_intelligence_poc/features/health/domain/entities/health_unit.dart';
+import 'package:health_intelligence_poc/features/health/domain/services/health_data_mode_controller.dart';
 import 'package:health_intelligence_poc/features/health/domain/usecases/calculate_health_metrics_summary.dart';
 import 'package:health_intelligence_poc/features/health/presentation/cubit/health_dashboard_cubit.dart';
 import 'package:health_intelligence_poc/features/health/presentation/cubit/health_dashboard_state.dart';
@@ -13,7 +15,8 @@ void main() {
   group('HealthDashboardCubit', () {
     test('emits loading then loaded with summaries and trend points', () async {
       final useCase = _FakeCalculateHealthMetricsSummary();
-      final cubit = HealthDashboardCubit(useCase);
+      final modeController = _FakeHealthDataModeController();
+      final cubit = HealthDashboardCubit(useCase, modeController);
 
       final expectation = expectLater(
         cubit.stream,
@@ -32,6 +35,7 @@ void main() {
       expect(loaded.trendPoints.first.date, DateTime(2026, 6, 3));
       expect(loaded.trendPoints.last.date, DateTime(2026, 6, 9));
       expect(loaded.selectedPeriod, HealthDashboardPeriod.last7Days);
+      expect(loaded.selectedDataMode, HealthDataMode.mock);
       expect(loaded.selectedRange, HealthDateRange.last7Days(DateTime(2026, 6, 10)));
 
       await cubit.close();
@@ -41,7 +45,8 @@ void main() {
       final useCase = _FakeCalculateHealthMetricsSummary(
         failure: const UnexpectedFailure(message: 'Unable to load dashboard'),
       );
-      final cubit = HealthDashboardCubit(useCase);
+      final modeController = _FakeHealthDataModeController();
+      final cubit = HealthDashboardCubit(useCase, modeController);
 
       final expectation = expectLater(
         cubit.stream,
@@ -66,7 +71,8 @@ void main() {
           HealthMetricType.weight,
         },
       );
-      final cubit = HealthDashboardCubit(useCase);
+      final modeController = _FakeHealthDataModeController();
+      final cubit = HealthDashboardCubit(useCase, modeController);
 
       final expectation = expectLater(
         cubit.stream,
@@ -87,7 +93,8 @@ void main() {
 
     test('uses last30Days range when last30Days period is selected', () async {
       final useCase = _FakeCalculateHealthMetricsSummary();
-      final cubit = HealthDashboardCubit(useCase);
+      final modeController = _FakeHealthDataModeController();
+      final cubit = HealthDashboardCubit(useCase, modeController);
 
       await cubit.loadDashboardData(
         testDate: DateTime(2026, 6, 10),
@@ -106,7 +113,8 @@ void main() {
 
     test('uses custom range when custom period is selected', () async {
       final useCase = _FakeCalculateHealthMetricsSummary();
-      final cubit = HealthDashboardCubit(useCase);
+      final modeController = _FakeHealthDataModeController();
+      final cubit = HealthDashboardCubit(useCase, modeController);
 
       await cubit.loadDashboardData(
         period: HealthDashboardPeriod.custom,
@@ -126,6 +134,25 @@ void main() {
 
       await cubit.close();
     });
+
+    test('changeDataSource updates mode and reloads dashboard data', () async {
+      final useCase = _FakeCalculateHealthMetricsSummary();
+      final modeController = _FakeHealthDataModeController();
+      final cubit = HealthDashboardCubit(useCase, modeController);
+
+      await cubit.loadDashboardData(testDate: DateTime(2026, 6, 10));
+      final callCountBefore = useCase.callCount;
+
+      await cubit.changeDataSource(HealthDataMode.device);
+
+      expect(modeController.currentMode, HealthDataMode.device);
+      expect(cubit.state, isA<HealthDashboardLoaded>());
+      final loaded = cubit.state as HealthDashboardLoaded;
+      expect(loaded.selectedDataMode, HealthDataMode.device);
+      expect(useCase.callCount, greaterThan(callCountBefore));
+
+      await cubit.close();
+    });
   });
 }
 
@@ -137,11 +164,13 @@ class _FakeCalculateHealthMetricsSummary implements CalculateHealthMetricsSummar
 
   final Failure? failure;
   final Set<HealthMetricType> zeroDataMetricTypes;
+  int callCount = 0;
 
   @override
   Future<result.Result<HealthMetricSummary>> call(
     CalculateHealthMetricsSummaryParams params,
   ) async {
+    callCount += 1;
     if (failure != null) {
       return result.Error(failure!);
     }
@@ -176,5 +205,17 @@ class _FakeCalculateHealthMetricsSummary implements CalculateHealthMetricsSummar
         dateRange: params.dateRange,
       ),
     );
+  }
+}
+
+class _FakeHealthDataModeController implements HealthDataModeController {
+  HealthDataMode _mode = HealthDataMode.mock;
+
+  @override
+  HealthDataMode get currentMode => _mode;
+
+  @override
+  Future<void> setMode(HealthDataMode mode) async {
+    _mode = mode;
   }
 }

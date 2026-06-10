@@ -3,19 +3,25 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/health_data_mode.dart';
 import '../../domain/entities/health_date_range.dart';
 import '../../domain/entities/health_metric_summary.dart';
 import '../../domain/entities/health_metric_type.dart';
 import '../../domain/entities/health_trend_point.dart';
+import '../../domain/services/health_data_mode_controller.dart';
 import '../../domain/usecases/calculate_health_metrics_summary.dart';
 import 'health_dashboard_state.dart';
 
 class HealthDashboardCubit extends Cubit<HealthDashboardState> {
-  HealthDashboardCubit(this._calculateHealthMetricsSummary)
+  HealthDashboardCubit(
+    this._calculateHealthMetricsSummary,
+    this._healthDataModeController,
+  )
       : super(
           HealthDashboardInitial(
             selectedTestDate: DateTime.now(),
             selectedPeriod: HealthDashboardPeriod.last7Days,
+            selectedDataMode: _healthDataModeController.currentMode,
             selectedRange: HealthDateRange.last7Days(DateTime.now()),
           ),
         ) {
@@ -23,6 +29,7 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
   }
 
   final CalculateHealthMetricsSummary _calculateHealthMetricsSummary;
+  final HealthDataModeController _healthDataModeController;
 
   static const List<HealthMetricType> _dashboardMetrics = [
     HealthMetricType.steps,
@@ -34,11 +41,13 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
   Future<void> loadDashboardData({
     DateTime? testDate,
     HealthDashboardPeriod? period,
+    HealthDataMode? dataMode,
     DateTime? customStartDate,
     DateTime? customEndDate,
   }) async {
     final selectedDate = _normalizeDate(testDate ?? state.selectedTestDate);
     final selectedPeriod = period ?? state.selectedPeriod;
+    final selectedDataMode = dataMode ?? state.selectedDataMode;
     final selectedCustomStart = _normalizeNullableDate(customStartDate ?? state.customStartDate);
     final selectedCustomEnd = _normalizeNullableDate(customEndDate ?? state.customEndDate);
     final selectedRange = _resolveSelectedRange(
@@ -53,6 +62,7 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
       HealthDashboardLoading(
         selectedTestDate: selectedDate,
         selectedPeriod: selectedPeriod,
+        selectedDataMode: selectedDataMode,
         selectedRange: selectedRange,
         customStartDate: selectedCustomStart,
         customEndDate: selectedCustomEnd,
@@ -96,6 +106,7 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
         HealthDashboardLoaded(
           selectedTestDate: selectedDate,
           selectedPeriod: selectedPeriod,
+          selectedDataMode: selectedDataMode,
           selectedRange: selectedRange,
           customStartDate: selectedCustomStart,
           customEndDate: selectedCustomEnd,
@@ -111,6 +122,7 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
         HealthDashboardError(
           selectedTestDate: selectedDate,
           selectedPeriod: selectedPeriod,
+          selectedDataMode: selectedDataMode,
           selectedRange: selectedRange,
           customStartDate: selectedCustomStart,
           customEndDate: selectedCustomEnd,
@@ -118,6 +130,11 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
         ),
       );
     }
+  }
+
+  Future<void> changeDataSource(HealthDataMode mode) async {
+    await _healthDataModeController.setMode(mode);
+    await loadDashboardData(dataMode: mode);
   }
 
   Future<HealthMetricSummary?> _loadSummarySafely({
