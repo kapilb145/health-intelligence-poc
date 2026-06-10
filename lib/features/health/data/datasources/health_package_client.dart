@@ -22,6 +22,10 @@ class HealthPackageDataPoint {
   final DateTime dateTo;
 }
 
+/// Adapter contract around the `health` package SDK surface.
+///
+/// Keeps datasource code isolated from direct plugin API calls so
+/// provider-specific concerns remain contained in the data layer.
 abstract class HealthPackageClient {
   Future<bool> isDataAvailable();
 
@@ -37,6 +41,10 @@ abstract class HealthPackageClient {
   });
 }
 
+/// Concrete adapter over the `health` package for HealthKit/Health Connect.
+///
+/// Encapsulates SDK configuration, permission flow, and raw point reads,
+/// shielding higher layers from plugin-specific behavior.
 class HealthPackageClientImpl implements HealthPackageClient {
   HealthPackageClientImpl({health.Health? sdk}) : _sdk = sdk ?? health.Health();
 

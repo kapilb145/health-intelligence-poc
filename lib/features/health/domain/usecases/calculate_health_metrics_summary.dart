@@ -6,6 +6,10 @@ import '../entities/health_metric_type.dart';
 import '../repositories/health_repository.dart';
 import '../services/health_analytics_service.dart';
 
+/// Orchestrates summary calculation for a metric over a requested date range.
+///
+/// Coordinates repository retrieval and delegates computations to the
+/// analytics service, keeping presentation unaware of data-source details.
 class CalculateHealthMetricsSummary
     implements
         UseCase<

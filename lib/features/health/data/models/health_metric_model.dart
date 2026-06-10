@@ -3,6 +3,10 @@ import '../../domain/entities/health_metric.dart';
 import '../../domain/entities/health_metric_type.dart';
 import '../../domain/entities/health_unit.dart';
 
+/// Data-layer representation used for serialization and provider mapping.
+///
+/// Converts between external/raw payloads and the provider-agnostic
+/// domain entity to keep mapping concerns out of business logic.
 class HealthMetricModel {
   const HealthMetricModel({
     required this.id,

@@ -15,6 +15,10 @@ import '../../features/health/presentation/cubit/health_dashboard_cubit.dart';
 
 final GetIt sl = GetIt.instance;
 
+/// Configures application dependency graph for the health feature.
+///
+/// `useDeviceDataSource` switches the `HealthDataSource` binding between
+/// `MockHealthDataSource` and `DeviceHealthDataSource` at composition time.
 Future<void> configureDependencies({
   bool useDeviceDataSource = false,
 }) async {

@@ -4,6 +4,10 @@ import '../entities/health_metric_summary.dart';
 import '../entities/health_metric_type.dart';
 import '../entities/health_unit.dart';
 
+/// Reusable calculation layer for health summaries and period-based averages.
+///
+/// This service is pure domain logic and remains independent from Flutter,
+/// platform SDKs, and provider-specific APIs.
 class HealthAnalyticsService {
   const HealthAnalyticsService();
 

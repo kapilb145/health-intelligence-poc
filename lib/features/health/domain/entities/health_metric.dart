@@ -2,6 +2,10 @@ import 'health_data_provider.dart';
 import 'health_metric_type.dart';
 import 'health_unit.dart';
 
+/// Provider-independent representation of a single health measurement.
+///
+/// Domain logic consumes this model without depending on HealthKit,
+/// Health Connect, or mock/provider-specific payload formats.
 class HealthMetric {
   const HealthMetric({
     required this.id,

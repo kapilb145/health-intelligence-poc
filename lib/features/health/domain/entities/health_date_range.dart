@@ -1,3 +1,7 @@
+/// Centralized date window used by analytics and repository queries.
+///
+/// Keeps 7-day, 30-day, and custom range rules in one place so
+/// period boundaries stay consistent across features.
 class HealthDateRange {
   HealthDateRange._({
     required this.startDate,

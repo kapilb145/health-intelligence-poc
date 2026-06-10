@@ -11,6 +11,10 @@ import '../models/health_metric_model.dart';
 import 'health_data_source.dart';
 import 'health_package_client.dart';
 
+/// Native-provider datasource implementation for iOS/Android health stores.
+///
+/// Uses the health package adapter and mapper to convert provider data
+/// into internal models while enforcing availability and permission checks.
 class DeviceHealthDataSource implements HealthDataSource {
   DeviceHealthDataSource({
     required this._client,
