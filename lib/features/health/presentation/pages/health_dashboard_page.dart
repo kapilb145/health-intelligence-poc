@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/health_date_range.dart';
 import '../../domain/entities/health_metric_summary.dart';
 import '../../domain/entities/health_metric_type.dart';
 import '../../domain/entities/health_unit.dart';
@@ -22,11 +23,27 @@ class HealthDashboardPage extends StatelessWidget {
         builder: (context, state) {
           return Column(
             children: [
-              _DateSelector(
-                selectedDate: state.selectedTestDate,
-                onSelectDate: (date) {
+              _PeriodSelector(
+                selectedPeriod: state.selectedPeriod,
+                selectedRange: state.selectedRange,
+                customStartDate: state.customStartDate,
+                customEndDate: state.customEndDate,
+                onPeriodChanged: (period) {
+                  context.read<HealthDashboardCubit>().loadDashboardData(
+                        period: period,
+                      );
+                },
+                onSelectCustomStartDate: (date) {
+                  context.read<HealthDashboardCubit>().loadDashboardData(
+                        period: HealthDashboardPeriod.custom,
+                        customStartDate: date,
+                      );
+                },
+                onSelectCustomEndDate: (date) {
                   context.read<HealthDashboardCubit>().loadDashboardData(
                         testDate: date,
+                        period: HealthDashboardPeriod.custom,
+                        customEndDate: date,
                       );
                 },
               ),
@@ -159,42 +176,116 @@ class HealthDashboardPage extends StatelessWidget {
   }
 }
 
-class _DateSelector extends StatelessWidget {
-  const _DateSelector({
-    required this.selectedDate,
-    required this.onSelectDate,
+class _PeriodSelector extends StatelessWidget {
+  const _PeriodSelector({
+    required this.selectedPeriod,
+    required this.selectedRange,
+    required this.customStartDate,
+    required this.customEndDate,
+    required this.onPeriodChanged,
+    required this.onSelectCustomStartDate,
+    required this.onSelectCustomEndDate,
   });
 
-  final DateTime selectedDate;
-  final ValueChanged<DateTime> onSelectDate;
+  final HealthDashboardPeriod selectedPeriod;
+  final HealthDateRange selectedRange;
+  final DateTime? customStartDate;
+  final DateTime? customEndDate;
+  final ValueChanged<HealthDashboardPeriod> onPeriodChanged;
+  final ValueChanged<DateTime> onSelectCustomStartDate;
+  final ValueChanged<DateTime> onSelectCustomEndDate;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              'Selected test date: ${_formatDate(selectedDate)}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+          Row(
+            children: [
+              Text(
+                'Period:',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(width: 12),
+              DropdownButton<HealthDashboardPeriod>(
+                value: selectedPeriod,
+                onChanged: (value) {
+                  if (value != null) {
+                    onPeriodChanged(value);
+                  }
+                },
+                items: const [
+                  DropdownMenuItem(
+                    value: HealthDashboardPeriod.last7Days,
+                    child: Text('Last 7 days'),
+                  ),
+                  DropdownMenuItem(
+                    value: HealthDashboardPeriod.last30Days,
+                    child: Text('Last 30 days'),
+                  ),
+                  DropdownMenuItem(
+                    value: HealthDashboardPeriod.custom,
+                    child: Text('Custom'),
+                  ),
+                ],
+              ),
+            ],
           ),
-          OutlinedButton(
-            onPressed: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: selectedDate,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-              );
+          const SizedBox(height: 4),
+          Text(
+            _formatRange(selectedRange),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          if (selectedPeriod == HealthDashboardPeriod.custom) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                OutlinedButton(
+                  onPressed: () async {
+                    final initialDate = customStartDate ?? DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: initialDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
 
-              if (picked != null) {
-                onSelectDate(picked);
-              }
-            },
-            child: const Text('Change'),
-          ),
+                    if (picked != null) {
+                      onSelectCustomStartDate(picked);
+                    }
+                  },
+                  child: Text(
+                    customStartDate == null
+                        ? 'Select start date'
+                        : 'Start: ${_formatDate(customStartDate!)}',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () async {
+                    final initialDate = customEndDate ?? customStartDate ?? DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: initialDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+
+                    if (picked != null) {
+                      onSelectCustomEndDate(picked);
+                    }
+                  },
+                  child: Text(
+                    customEndDate == null
+                        ? 'Select end date'
+                        : 'End: ${_formatDate(customEndDate!)}',
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -216,6 +307,10 @@ class _DateSelector extends StatelessWidget {
       'Dec',
     ];
 
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    return '${months[date.month - 1]} ${date.day.toString().padLeft(2, '0')}, ${date.year}';
+  }
+
+  String _formatRange(HealthDateRange range) {
+    return '${_formatDate(range.startDate)} - ${_formatDate(range.endDate)}';
   }
 }

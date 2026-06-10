@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health_intelligence_poc/core/errors/failure.dart';
 import 'package:health_intelligence_poc/core/result/result.dart' as result;
+import 'package:health_intelligence_poc/features/health/domain/entities/health_date_range.dart';
 import 'package:health_intelligence_poc/features/health/domain/entities/health_metric_summary.dart';
 import 'package:health_intelligence_poc/features/health/domain/entities/health_metric_type.dart';
 import 'package:health_intelligence_poc/features/health/domain/entities/health_unit.dart';
@@ -28,6 +29,8 @@ void main() {
       final loaded = cubit.state as HealthDashboardLoaded;
       expect(loaded.metricSummaries.length, 4);
       expect(loaded.trendPoints.length, 3);
+      expect(loaded.selectedPeriod, HealthDashboardPeriod.last7Days);
+      expect(loaded.selectedRange, HealthDateRange.last7Days(DateTime(2026, 6, 10)));
 
       await cubit.close();
     });
@@ -76,6 +79,42 @@ void main() {
 
       final loaded = cubit.state as HealthDashboardLoaded;
       expect(loaded.metricSummaries.keys, {HealthMetricType.steps});
+
+      await cubit.close();
+    });
+
+    test('uses last30Days range when last30Days period is selected', () async {
+      final useCase = _FakeCalculateHealthMetricsSummary();
+      final cubit = HealthDashboardCubit(useCase);
+
+      await cubit.loadDashboardData(
+        testDate: DateTime(2026, 6, 10),
+        period: HealthDashboardPeriod.last30Days,
+      );
+
+      final loaded = cubit.state as HealthDashboardLoaded;
+      expect(loaded.selectedPeriod, HealthDashboardPeriod.last30Days);
+      expect(loaded.selectedRange, HealthDateRange.last30Days(DateTime(2026, 6, 10)));
+
+      await cubit.close();
+    });
+
+    test('uses custom range when custom period is selected', () async {
+      final useCase = _FakeCalculateHealthMetricsSummary();
+      final cubit = HealthDashboardCubit(useCase);
+
+      await cubit.loadDashboardData(
+        period: HealthDashboardPeriod.custom,
+        customStartDate: DateTime(2026, 1, 1),
+        customEndDate: DateTime(2026, 1, 7),
+      );
+
+      final loaded = cubit.state as HealthDashboardLoaded;
+      expect(loaded.selectedPeriod, HealthDashboardPeriod.custom);
+      expect(
+        loaded.selectedRange,
+        HealthDateRange.custom(DateTime(2026, 1, 1), DateTime(2026, 1, 7)),
+      );
 
       await cubit.close();
     });

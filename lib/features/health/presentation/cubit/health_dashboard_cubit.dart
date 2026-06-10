@@ -15,6 +15,8 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
       : super(
           HealthDashboardInitial(
             selectedTestDate: DateTime.now(),
+            selectedPeriod: HealthDashboardPeriod.last7Days,
+            selectedRange: HealthDateRange.last7Days(DateTime.now()),
           ),
         ) {
       _trace('HealthDashboardCubit created.');
@@ -31,13 +33,34 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
 
   Future<void> loadDashboardData({
     DateTime? testDate,
+    HealthDashboardPeriod? period,
+    DateTime? customStartDate,
+    DateTime? customEndDate,
   }) async {
     final selectedDate = _normalizeDate(testDate ?? state.selectedTestDate);
+    final selectedPeriod = period ?? state.selectedPeriod;
+    final selectedCustomStart = _normalizeNullableDate(customStartDate ?? state.customStartDate);
+    final selectedCustomEnd = _normalizeNullableDate(customEndDate ?? state.customEndDate);
+    final selectedRange = _resolveSelectedRange(
+      selectedDate: selectedDate,
+      period: selectedPeriod,
+      customStartDate: selectedCustomStart,
+      customEndDate: selectedCustomEnd,
+    );
+
     _trace('loadDashboardData start for $selectedDate');
-    emit(HealthDashboardLoading(selectedTestDate: selectedDate));
+    emit(
+      HealthDashboardLoading(
+        selectedTestDate: selectedDate,
+        selectedPeriod: selectedPeriod,
+        selectedRange: selectedRange,
+        customStartDate: selectedCustomStart,
+        customEndDate: selectedCustomEnd,
+      ),
+    );
 
     try {
-      final range = HealthDateRange.last7Days(selectedDate);
+      final range = selectedRange;
       _trace('Requesting summaries for metrics: ${_dashboardMetrics.map((e) => e.name).join(', ')}');
       final summaryResults = await Future.wait(
         _dashboardMetrics.map(
@@ -58,7 +81,12 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
 
       _trace('Summary results received: ${summaryMap.keys.map((e) => e.name).join(', ')}');
 
-      final trendPoints = await _loadTrendPoints(selectedDate).timeout(
+      final trendPoints = await _loadTrendPoints(
+        selectedDate: selectedDate,
+        period: selectedPeriod,
+        customStartDate: selectedCustomStart,
+        customEndDate: selectedCustomEnd,
+      ).timeout(
         const Duration(seconds: 30),
         onTimeout: () => throw TimeoutException('Timed out while loading trend points.'),
       );
@@ -67,6 +95,10 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
       emit(
         HealthDashboardLoaded(
           selectedTestDate: selectedDate,
+          selectedPeriod: selectedPeriod,
+          selectedRange: selectedRange,
+          customStartDate: selectedCustomStart,
+          customEndDate: selectedCustomEnd,
           metricSummaries: summaryMap,
           trendPoints: trendPoints,
         ),
@@ -78,6 +110,10 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
       emit(
         HealthDashboardError(
           selectedTestDate: selectedDate,
+          selectedPeriod: selectedPeriod,
+          selectedRange: selectedRange,
+          customStartDate: selectedCustomStart,
+          customEndDate: selectedCustomEnd,
           message: error.toString(),
         ),
       );
@@ -123,7 +159,12 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
     );
   }
 
-  Future<List<HealthTrendPoint>> _loadTrendPoints(DateTime selectedDate) async {
+  Future<List<HealthTrendPoint>> _loadTrendPoints({
+    required DateTime selectedDate,
+    required HealthDashboardPeriod period,
+    required DateTime? customStartDate,
+    required DateTime? customEndDate,
+  }) async {
     final checkpoints = [
       selectedDate.subtract(const Duration(days: 9)),
       selectedDate.subtract(const Duration(days: 5)),
@@ -137,7 +178,12 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
       final summaryResult = await _calculateHealthMetricsSummary(
         CalculateHealthMetricsSummaryParams(
           metricType: HealthMetricType.steps,
-          dateRange: HealthDateRange.last7Days(checkpoint),
+          dateRange: _resolveSelectedRange(
+            selectedDate: checkpoint,
+            period: period,
+            customStartDate: customStartDate,
+            customEndDate: customEndDate,
+          ),
         ),
       ).timeout(
         const Duration(seconds: 20),
@@ -165,6 +211,37 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
 
   DateTime _normalizeDate(DateTime value) {
     return DateTime(value.year, value.month, value.day);
+  }
+
+  DateTime? _normalizeNullableDate(DateTime? value) {
+    if (value == null) {
+      return null;
+    }
+    return _normalizeDate(value);
+  }
+
+  HealthDateRange _resolveSelectedRange({
+    required DateTime selectedDate,
+    required HealthDashboardPeriod period,
+    required DateTime? customStartDate,
+    required DateTime? customEndDate,
+  }) {
+    switch (period) {
+      case HealthDashboardPeriod.last7Days:
+        return HealthDateRange.last7Days(selectedDate);
+      case HealthDashboardPeriod.last30Days:
+        return HealthDateRange.last30Days(selectedDate);
+      case HealthDashboardPeriod.custom:
+        final start = customStartDate;
+        final end = customEndDate;
+        if (start == null || end == null) {
+          return HealthDateRange.last7Days(selectedDate);
+        }
+        if (end.isBefore(start)) {
+          return HealthDateRange.custom(end, start);
+        }
+        return HealthDateRange.custom(start, end);
+    }
   }
 
   void _trace(String message) {
