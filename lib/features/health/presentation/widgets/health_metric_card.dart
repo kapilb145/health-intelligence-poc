@@ -3,57 +3,107 @@ import 'package:flutter/material.dart';
 class HealthMetricCard extends StatelessWidget {
   const HealthMetricCard({
     super.key,
-    required this.title,
+    required this.metricName,
+    required this.icon,
     this.average,
     this.unitLabel,
-    this.dataPointCount,
+    this.periodLabel,
     this.statusText,
   });
 
-  final String title;
+  final String metricName;
+  final IconData icon;
   final double? average;
   final String? unitLabel;
-  final int? dataPointCount;
+  final String? periodLabel;
   final String? statusText;
 
-  bool get _isAvailable =>
-      average != null && unitLabel != null && dataPointCount != null;
+  bool get _isAvailable => average != null && unitLabel != null;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium,
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    metricName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             if (_isAvailable) ...[
-              Text(
-                '${average!.toStringAsFixed(1)} $unitLabel',
-                style: theme.textTheme.headlineSmall,
+              RichText(
+                text: TextSpan(
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                  children: [
+                    TextSpan(text: average!.toStringAsFixed(1)),
+                    TextSpan(
+                      text: ' $unitLabel',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Data points: $dataPointCount',
-                style: theme.textTheme.bodyMedium,
+                periodLabel ?? 'average',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ] else ...[
               Text(
-                'Not available',
-                style: theme.textTheme.titleMedium,
+                'No data available',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               if (statusText != null) ...[
                 const SizedBox(height: 8),
                 Text(
                   statusText!,
-                  style: theme.textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ],

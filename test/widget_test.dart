@@ -19,7 +19,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Health Intelligence Dashboard'),
+      find.text('Health Intelligence'),
       findsOneWidget,
     );
   });
