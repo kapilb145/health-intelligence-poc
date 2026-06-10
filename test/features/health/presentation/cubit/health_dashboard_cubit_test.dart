@@ -28,7 +28,9 @@ void main() {
 
       final loaded = cubit.state as HealthDashboardLoaded;
       expect(loaded.metricSummaries.length, 4);
-      expect(loaded.trendPoints.length, 3);
+      expect(loaded.trendPoints.length, 7);
+      expect(loaded.trendPoints.first.date, DateTime(2026, 6, 3));
+      expect(loaded.trendPoints.last.date, DateTime(2026, 6, 9));
       expect(loaded.selectedPeriod, HealthDashboardPeriod.last7Days);
       expect(loaded.selectedRange, HealthDateRange.last7Days(DateTime(2026, 6, 10)));
 
@@ -95,6 +97,9 @@ void main() {
       final loaded = cubit.state as HealthDashboardLoaded;
       expect(loaded.selectedPeriod, HealthDashboardPeriod.last30Days);
       expect(loaded.selectedRange, HealthDateRange.last30Days(DateTime(2026, 6, 10)));
+      expect(loaded.trendPoints.length, 30);
+      expect(loaded.trendPoints.first.date, DateTime(2026, 5, 11));
+      expect(loaded.trendPoints.last.date, DateTime(2026, 6, 9));
 
       await cubit.close();
     });
@@ -115,6 +120,9 @@ void main() {
         loaded.selectedRange,
         HealthDateRange.custom(DateTime(2026, 1, 1), DateTime(2026, 1, 7)),
       );
+      expect(loaded.trendPoints.length, 7);
+      expect(loaded.trendPoints.first.date, DateTime(2026, 1, 1));
+      expect(loaded.trendPoints.last.date, DateTime(2026, 1, 7));
 
       await cubit.close();
     });

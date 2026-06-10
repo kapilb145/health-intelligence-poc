@@ -50,14 +50,14 @@ class MockHealthDataSource implements HealthDataSource {
         day: day,
         type: HealthMetricType.steps,
         unit: HealthUnit.count,
-        value: _rangeValue(dayIndex, min: 3000, max: 15000),
+        value: _rangeValue(dayIndex, min: 4000, max: 12000),
       ));
 
       output.add(_metricForDay(
         day: day,
         type: HealthMetricType.restingHeartRate,
         unit: HealthUnit.bpm,
-        value: _rangeValue(dayIndex + 17, min: 55, max: 90),
+        value: _rangeValue(dayIndex + 17, min: 50, max: 100),
       ));
 
       output.add(_metricForDay(
@@ -78,7 +78,7 @@ class MockHealthDataSource implements HealthDataSource {
         day: day,
         type: HealthMetricType.weight,
         unit: HealthUnit.kilogram,
-        value: _rangeValue(dayIndex + 67, min: 50, max: 120),
+        value: _rangeValue(dayIndex + 67, min: 55, max: 95),
       ));
 
       output.add(_metricForDay(

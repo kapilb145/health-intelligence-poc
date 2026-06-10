@@ -165,11 +165,13 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
     required DateTime? customStartDate,
     required DateTime? customEndDate,
   }) async {
-    final checkpoints = [
-      selectedDate.subtract(const Duration(days: 9)),
-      selectedDate.subtract(const Duration(days: 5)),
-      selectedDate,
-    ];
+    final selectedRange = _resolveSelectedRange(
+      selectedDate: selectedDate,
+      period: period,
+      customStartDate: customStartDate,
+      customEndDate: customEndDate,
+    );
+    final checkpoints = _buildDailyCheckpoints(selectedRange);
 
     final points = <HealthTrendPoint>[];
 
@@ -178,12 +180,7 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
       final summaryResult = await _calculateHealthMetricsSummary(
         CalculateHealthMetricsSummaryParams(
           metricType: HealthMetricType.steps,
-          dateRange: _resolveSelectedRange(
-            selectedDate: checkpoint,
-            period: period,
-            customStartDate: customStartDate,
-            customEndDate: customEndDate,
-          ),
+          dateRange: HealthDateRange.custom(checkpoint, checkpoint),
         ),
       ).timeout(
         const Duration(seconds: 20),
@@ -192,14 +189,16 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
 
       summaryResult.when(
         onSuccess: (summary) {
-          points.add(
-            HealthTrendPoint(
-              date: _normalizeDate(checkpoint),
-              value: summary.average,
-              metricType: summary.metricType,
-              unit: summary.unit,
-            ),
-          );
+          if (summary.dataPointCount > 0) {
+            points.add(
+              HealthTrendPoint(
+                date: _normalizeDate(checkpoint),
+                value: summary.average,
+                metricType: summary.metricType,
+                unit: summary.unit,
+              ),
+            );
+          }
         },
         onFailure: (failure) => throw Exception(failure.message),
       );
@@ -207,6 +206,22 @@ class HealthDashboardCubit extends Cubit<HealthDashboardState> {
 
     points.sort((a, b) => a.date.compareTo(b.date));
     return points;
+  }
+
+  List<DateTime> _buildDailyCheckpoints(HealthDateRange range) {
+    final start = _normalizeDate(range.startDate);
+    final end = _normalizeDate(range.endDate);
+
+    if (end.isBefore(start)) {
+      return const <DateTime>[];
+    }
+
+    final totalDays = end.difference(start).inDays;
+    return List<DateTime>.generate(
+      totalDays + 1,
+      (index) => start.add(Duration(days: index)),
+      growable: false,
+    );
   }
 
   DateTime _normalizeDate(DateTime value) {
